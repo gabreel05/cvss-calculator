@@ -4,14 +4,8 @@ import { values } from '@/data/values';
 import { VulnerabilityCard } from '@/components/vulnerability-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useEffect, useState } from 'react';
-import { set } from 'react-hook-form';
 import { cn } from '@/lib/utils';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -57,32 +51,53 @@ export default function Page() {
     }
   }, []);
 
-  useEffect(() => {
-    async function fetchData() {
-      const response = await fetch(
-        `http://localhost:8005/cvss?cvss_string=${cvss}`,
-        {
-          headers: {
-            Authorization: 'Bearer ' + window.localStorage.getItem('token'),
-          },
-          method: 'GET',
-        }
-      );
-      const data = await response.json();
-      setSeverity(data.severity[0]);
-      setScore(data.score);
-
-      const historic = await fetch('http://localhost:8005/user_history', {
+  async function fetchData() {
+    const response = await fetch(
+      `http://localhost:8005/cvss?cvss_string=${cvss}`,
+      {
         headers: {
           Authorization: 'Bearer ' + window.localStorage.getItem('token'),
         },
         method: 'GET',
-      });
-      const historicData = await historic.json();
-      setHistoric(historicData);
-    }
+      }
+    );
+    const data = await response.json();
+    setSeverity(data.severity[0]);
+    setScore(data.score);
+  }
 
+  async function fetchHistory() {
+    const historic = await fetch('http://localhost:8005/user_history', {
+      headers: {
+        Authorization: 'Bearer ' + window.localStorage.getItem('token'),
+      },
+      method: 'GET',
+    });
+    const historicData = await historic.json();
+    setHistoric(historicData);
+  }
+
+  async function saveToHistory() {
+    await fetch('http://localhost:8005/cvss_history', {
+      headers: {
+        Authorization: 'Bearer ' + window.localStorage.getItem('token'),
+        'Content-Type': 'application/json',
+      },
+      method: 'POST',
+      body: JSON.stringify({
+        cvss_string: cvss,
+        cvss_score: {
+          severity: severity,
+          score: score,
+        },
+      }),
+    });
+    fetchHistory();
+  }
+
+  useEffect(() => {
     fetchData();
+    fetchHistory();
   }, [
     attackVector,
     attackComplexity,
@@ -164,7 +179,7 @@ export default function Page() {
             <SheetTrigger asChild>
               <Button>History</Button>
             </SheetTrigger>
-            <SheetContent>
+            <SheetContent className="w-[600px] sm:w-[600px] sm:max-w-[580px]">
               <SheetHeader>
                 <SheetTitle>History</SheetTitle>
                 <SheetDescription>
@@ -179,18 +194,20 @@ export default function Page() {
                     <TableCaption>A list of your searches.</TableCaption>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Severity</TableHead>
-                        <TableHead>Score</TableHead>
-                        <TableHead>CVSS String</TableHead>
+                        <TableHead className="text-start">Severity</TableHead>
+                        <TableHead className="text-start">Score</TableHead>
+                        <TableHead className="text-start">
+                          CVSS String
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {historic.map((item) => (
-                        <TableRow>
+                        <TableRow key={item._id}>
                           <TableCell>{item.cvss_score.severity[0]}</TableCell>
                           <TableCell>{item.cvss_score.score}</TableCell>
                           <TableCell className="font-medium">
-                            <TooltipProvider>
+                            {/* <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Button variant="outline">
@@ -201,7 +218,8 @@ export default function Page() {
                                   <p>{item.cvss_string}</p>
                                 </TooltipContent>
                               </Tooltip>
-                            </TooltipProvider>
+                            </TooltipProvider> */}
+                            {item.cvss_string}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -268,7 +286,8 @@ export default function Page() {
           handleChange={handleAvailabilityImpactChange}
         />
       </main>
-      <Card className="mt-10 w-1/2 flex flex-col">
+
+      <Card className="mt-5 w-1/2 flex flex-col">
         <CardHeader className="flex flex-column align-middle justify-center bg-gray-900 h-0.5 text-center rounded">
           <CardTitle className="text-slate-300">
             Severity Score Vector
@@ -276,7 +295,8 @@ export default function Page() {
         </CardHeader>
         <CardContent>
           <div className="flex flex-col items-center justify-center h-max  flex-1 pt-6">
-            <div className="flex flex-row w-96 justify-between align-middle items-center mb-3">
+            <div className="flex flex-row w-9/12 justify-between align-middle items-center mb-3">
+              <Button onClick={saveToHistory}>Save to History</Button>
               <p className={cn('text-xl text-gray-800 bold font-bold')}>
                 Score: {score}
               </p>
